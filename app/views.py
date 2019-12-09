@@ -3,18 +3,39 @@ from flask import render_template
 from flask import request, redirect, url_for, send_from_directory, send_file
 import os
 from werkzeug.utils import secure_filename
+# import doInference
+
+
+import keras
+from keras import backend as K
+from keras.losses import binary_crossentropy
+from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
+import numpy as np
+
+import cv2
+import matplotlib.pyplot as plt
+import copy
+# import os
+
+# @app.route("/")
+# def index():
+#   return render_template("public/index.html")
+
+# @app.route("/about")
+# def about():
+#   return render_template("public/about.html")
+
+
+curPath = os.getcwd()
+app.config["IMAGE_UPLOADS"] = curPath + "/app/static/img/"
+app.config["ALLOWED_IMAGE_EXTENSIONS"] = ["JPEG", "JPG", "PNG", "GIF"]
+app.config["MAX_IMAGE_FILESIZE"] = 2 * 1024 * 1024
+
 
 @app.route("/")
 def index():
-  return render_template("public/index.html")
+  return render_template("public/upload_image.html")
 
-@app.route("/about")
-def about():
-  return render_template("public/about.html")
-
-app.config["IMAGE_UPLOADS"] = "/home/ece-student/app/app/static/img/"
-app.config["ALLOWED_IMAGE_EXTENSIONS"] = ["JPEG", "JPG", "PNG", "GIF"]
-app.config["MAX_IMAGE_FILESIZE"] = 2 * 1024 * 1024
 
 def allowed_image(filename):
   if not "." in filename:
@@ -39,10 +60,13 @@ def allowed_image_filesize(filesize):
 @app.route("/upload-image", methods=["GET", "POST"])
 def upload_image():
 
+  print("here")
   if request.method == "POST":
 
     if request.files:
 
+      print("request is: \n")
+      print(request.files)
       image = request.files["image"]
 
       if image.filename == "":
@@ -52,6 +76,8 @@ def upload_image():
       if allowed_image(image.filename):
         filename = secure_filename(image.filename)
 
+        imageSavePath = os.path.join(app.config["IMAGE_UPLOADS"])
+        print("imageSavePath: "  + imageSavePath)
         image.save(os.path.join(app.config["IMAGE_UPLOADS"], filename))
 
         print("Image saved")
@@ -64,17 +90,93 @@ def upload_image():
 
   return render_template("public/upload_image.html")
 
+
+
+def dice_coef(y_true, y_pred, smooth=1):
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = K.sum(y_true_f * y_pred_f)
+    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+
+def dice_loss(y_true, y_pred):
+    smooth = 1.
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = y_true_f * y_pred_f
+    score = (2. * K.sum(intersection) + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+    return 1. - score
+
+def bce_dice_loss(y_true, y_pred):
+    return binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
+
+
+# In[40]:
+
+
+def readImageAsArray(imagePath):
+    img = cv2.imread(imagePath)
+    return img
+
+def showImage(imageArray):
+    # plots image array as colored image 
+    plt.imshow(cv2.cvtColor(imageArray, cv2.COLOR_BGR2RGB))
+
+
+def makeInference():
+    print("called to make inference\n")
+    model = keras.models.load_model("model-save.h5", 
+                                custom_objects={'bce_dice_loss': bce_dice_loss,
+                                                'dice_coef': dice_coef,
+                                               })
+
+    test_img_path = os.getcwd() + "/static/img/00dbd3c.jpg"
+    print("image path: ")
+    print(test_img_path)
+    # test_img_path = "/app/static/img/00dbd3c.jpg"
+    imageAsArray = readImageAsArray(test_img_path)    
+    imageAsArrayCropped = cv2.resize(imageAsArray, (480, 320))   
+    imageAsArrayExpanded = np.expand_dims(imageAsArrayCropped, axis=0)
+    modelPrediction = model.predict(imageAsArrayExpanded)
+    predictionMasks = modelPrediction[0, ].round().astype(int)
+
+    
+    maskedImage = copy.deepcopy(imageAsArrayCropped)
+    print(maskedImage.shape)
+
+    for row in range(320):
+        for col in range(480):
+            if(predictionMasks[row][col][0]==1):
+                maskedImage[row][col] = [255,0,0]
+            elif(predictionMasks[row][col][1]==1):
+                maskedImage[row][col] = [0,255,0]
+            elif(predictionMasks[row][col][2]==1):
+                maskedImage[row][col] = [0,0,255]
+            elif(predictionMasks[row][col][3]==1):
+                maskedImage[row][col] = [100,100,100]
+            else:
+                maskedImage[row][col] = [0,0,0]
+
+    
+    plt.imshow(imageAsArrayCropped, cmap='gray')
+    plt.imshow(maskedImage, cmap='gist_rainbow_r', alpha=0.5)
+    plt.savefig('segmented-cloud.jpeg')
+
+
 @app.route("/show-image/<filename>")
 def uploaded_file(filename):
+  print("call here with filename: " + filename)
+  print("calling inference file")
+#   segmentedFileName = "segmented-cloud.jpeg"
+# #   doInference.makeInference()
+#   makeInference()
   return render_template("public/show_image.html", filename=filename)
 
 @app.route("/upload-image/<filename>")
 def send_file(filename):
+#   segmentedFileName = "segmented-cloud.jpeg"
+# #   doInference.makeInference()
+#   makeInference()
   return send_from_directory(app.config["IMAGE_UPLOADS"], filename)
-
-
-
-
 
 
 
