@@ -27,7 +27,13 @@
 
       <body>
         <p>Clouds</p>
-        <img src="{{ url_for('static', filename='img/cloud_pic.gif') }}" alt="">
+
+        {% if filename %}
+          <img src="{{ url_for('send_file', filename=filename) }}">
+        {% else %}
+          <h1>no image</h1>
+        {% endif %}
+
         <script src="{{ url_for('static', filename='js/app.js') }}"></script>
       </body>
 

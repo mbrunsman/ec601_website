@@ -1,6 +1,6 @@
 from app import app
 from flask import render_template
-from flask import request, redirect
+from flask import request, redirect, url_for, send_from_directory, send_file
 import os
 from werkzeug.utils import secure_filename
 
@@ -14,7 +14,7 @@ def about():
 
 app.config["IMAGE_UPLOADS"] = "/home/ece-student/app/app/static/img/"
 app.config["ALLOWED_IMAGE_EXTENSIONS"] = ["JPEG", "JPG", "PNG", "GIF"]
-app.config["MAX_IMAGE_FILESIZE"] = 0.5 * 1024 * 1024
+app.config["MAX_IMAGE_FILESIZE"] = 2 * 1024 * 1024
 
 def allowed_image(filename):
   if not "." in filename:
@@ -43,32 +43,60 @@ def upload_image():
 
     if request.files:
 
-      if "filesize" in request.cookies:
+      image = request.files["image"]
 
-        if not allowed_image_filesize(request.cookies["filesize"]):
-          print("Filesize exceeded maximum limit")
-          return redirect(request.url)
+      if image.filename == "":
+        print("No filename")
+        return redirect(request.url)
 
-        image = request.files["image"]
+      if allowed_image(image.filename):
+        filename = secure_filename(image.filename)
 
-        if image.filename == "":
-          print("No filename")
-          return redirect(request.url)
+        image.save(os.path.join(app.config["IMAGE_UPLOADS"], filename))
 
-        if allowed_image(image.filename):
-          filename = secure_filename(image.filename)
+        print("Image saved")
 
-          image.save(os.path.join(app.config["IMAGE_UPLOADS"], filename))
+        return redirect(url_for("uploaded_file", filename=filename))
 
-          print("Image saved")
-
-          return redirect(request.url)
-
-        else:
-          print("That file extension is not allowed")
-          return redirect(request.url)
+      else:
+        print("That file extension is not allowed")
+        return redirect(request.url)
 
   return render_template("public/upload_image.html")
+
+@app.route("/show-image/<filename>")
+def uploaded_file(filename):
+  return render_template("public/show_image.html", filename=filename)
+
+@app.route("/upload-image/<filename>")
+def send_file(filename):
+  return send_from_directory(app.config["IMAGE_UPLOADS"], filename)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route("/sign-up", methods=["GET", "POST"])
 def sign_up():
