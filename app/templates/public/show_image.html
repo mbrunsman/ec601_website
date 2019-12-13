@@ -8,13 +8,13 @@
   <div class="row">
     <div class="col">
 
-      <h1>Upload an image</h1>
+      <h1 style="color: darkred">EC601 Understanding Cloud Organization</h1>
       <hr>
 
       <form action="/upload-image" method="POST" enctype="multipart/form-data">
 
         <div class="form-group">
-          <label>Select image</label>
+          <h4 style="color: darkred">Upload Image</h4>
           <div class="custom-file">
             <input type="file" class="custom-file-input" name="image" id="image">
             <label class="custom-file-label" for="image">Select image...</label>
@@ -26,10 +26,11 @@
       </form>
 
       <body>
-        <p>Clouds</p>
 
         {% if filename %}
-          <img src="{{ url_for('send_file', filename=filename) }}">
+          <div style="display: flex; justify-content: center;">
+            <img src="{{ url_for('send_file', filename=filename,) }}" width=480 height=320>
+          </div>
         {% else %}
           <h1>no image</h1>
         {% endif %}

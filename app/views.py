@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 
 @app.route("/")
 def index():
-  return render_template("public/index.html")
+  return render_template("public/about.html")
 
 @app.route("/about")
 def about():
